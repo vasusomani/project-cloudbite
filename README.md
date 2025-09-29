@@ -2,11 +2,11 @@
 
 This project is a backend system for a modern food ordering application, developed as a major component for the BCSE408L Cloud Computing course. It demonstrates a sophisticated, event-driven architecture using multiple microservices that communicate asynchronously.
 
-The core of the project is a stateful `Order Service` that persists data in a PostgreSQL database. Instead of direct, blocking communication, services are decoupled using a RabbitMQ message broker, making the system resilient, scalable, and reflective of modern cloud-native design patterns.
+The application is containerized using **Docker** and deployed to a local **Kubernetes (Minikube)** cluster. The deployment process is fully automated via a **CI/CD pipeline built in Node-RED**, showcasing a complete workflow from deployment to verification. The system's architecture is designed to be resilient and scalable, leveraging a **PostgreSQL** database for stateful persistence and a **RabbitMQ** message broker for decoupled, asynchronous communication.
 
 ## Architecture
 
-The system follows an event-driven, microservice-based architecture. A client request triggers a series of synchronous pre-checks followed by a cascading chain of asynchronous events managed by RabbitMQ. The `Order Service` acts as the central orchestrator and source of truth, updating its state in the PostgreSQL database as it receives events from other services.
+The system follows an event-driven, microservice-based architecture. A client request triggers a series of synchronous pre-checks followed by a cascading chain of asynchronous events managed by RabbitMQ. The containerized `Order Service` is deployed on Kubernetes, while the `docker-compose` stack provides the necessary backing services (database and message broker).
 
 
 
@@ -15,104 +15,96 @@ The system follows an event-driven, microservice-based architecture. A client re
 * **Backend:** Java 17, Spring Boot
 * **Database:** PostgreSQL
 * **Messaging:** RabbitMQ
+* **Containerization:** Docker
+* **Orchestration:** Kubernetes (Minikube)
+* **CI/CD Workflow:** Node-RED
 * **Data Access:** Spring Data JPA, Hibernate
-* **Messaging Protocol:** Spring AMQP
 * **Build Tool:** Maven
-* **Infrastructure:** Docker & Docker Compose
+* **Infrastructure:** Docker Compose
 
 ## Getting Started
 
-Follow these instructions to get the backend system up and running on your local machine for development and testing purposes.
+Follow these instructions to get the entire system running on your local machine for a full demonstration.
 
 ### Prerequisites
 
-You must have the following software installed on your machine:
+You must have the following software installed:
 * Java Development Kit (JDK) 17 or higher
 * Apache Maven
 * Docker and Docker Compose
+* Minikube
+* `kubectl` (Kubernetes command-line tool)
+* Node.js and Node-RED
 
-### Installation & Running
+### Running the Full System (Demo Setup)
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <your-repository-url>
-    cd project-cloudbite
-    ```
-
-2.  **Start the Infrastructure:**
-    This single command will start the PostgreSQL database and the RabbitMQ message broker in the background.
+1.  **Start Infrastructure:** In the project's root directory, start PostgreSQL and RabbitMQ.
     ```bash
     docker-compose up -d
     ```
-    You can verify that the containers are running with `docker ps`. You can also access the RabbitMQ Management UI at `http://localhost:15672` (user: `guest`, pass: `guest`).
 
-3.  **Run the Microservices:**
-    Open **five separate terminal windows**. In each terminal, navigate to the respective service directory and run the Spring Boot application using the Maven wrapper.
-
-    * **Terminal 1 (User Stub):**
-        ```bash
-        cd user-service-stub
-        ./mvnw spring-boot:run
-        ```
-    * **Terminal 2 (Restaurant Stub):**
-        ```bash
-        cd restaurant-service-stub
-        ./mvnw spring-boot:run
-        ```
-    * **Terminal 3 (Payment Stub):**
-        ```bash
-        cd payment-service-stub
-        ./mvnw spring-boot:run
-        ```
-    * **Terminal 4 (Kitchen Stub):**
-        ```bash
-        cd kitchen-service-stub
-        ./mvnw spring-boot:run
-        ```
-    * **Terminal 5 (Main Order Service):**
-        ```bash
-        cd order-service
-        ./mvnw spring-boot:run
-        ```
-    Wait for all five applications to start up successfully.
-
-## Usage
-
-Once all services are running, you can test the complete workflow by sending a request to the main `Order Service`.
-
-1.  **Trigger the Workflow:**
-    Open a new terminal and use `curl` to send a POST request.
+2.  **Start Kubernetes Cluster:**
     ```bash
-    curl -X POST -H "Content-Type: application/json" http://localhost:5100/api/v1/orders
+    minikube start
     ```
 
-2.  **Expected Outcome:**
-    You will receive an immediate JSON response confirming that the order has been created with a `PENDING` status.
-    ```json
-    {
-      "id": 1,
-      "status": "PENDING",
-      "creationDate": "2025-09-25T10:30:00.123456"
-    }
+3.  **Start Network Tunnel:** Open a **new, dedicated terminal window** that you will keep open. This command creates a network bridge to your cluster.
+    ```bash
+    # Use sudo if your service port is < 1024 (e.g., 80)
+    minikube tunnel
     ```
 
-3.  **Verify the Asynchronous Flow:**
-    Watch the logs in your five running terminals. You will see a cascade of messages as the event flows through the system:
-    * `Order Service` logs the initial save and the `OrderCreatedEvent` being published.
-    * `Payment Service` logs receiving the event and publishing a `PaymentSuccessfulEvent`.
-    * `Kitchen Service` logs receiving the payment event.
-    * `Order Service` logs again, showing it received the `PaymentSuccessfulEvent` and updated the order's status to `PAID` in the database.
+4.  **Build the Docker Image:** Point your terminal to Minikube's Docker environment and build the image for the main service.
+    ```bash
+    eval $(minikube docker-env)
+    cd order-service
+    docker build -t order-service:v1 .
+    cd .. 
+    ```
 
-## Project Structure
+5.  **Start Stub Services:** Open four separate terminals and start each of the stub applications.
+    * **Terminal A:** `cd user-service-stub && ./mvnw spring-boot:run`
+    * **Terminal B:** `cd restaurant-service-stub && ./mvnw spring-boot:run`
+    * **Terminal C:** `cd payment-service-stub && ./mvnw spring-boot:run`
+    * **Terminal D:** `cd kitchen-service-stub && ./mvnw spring-boot:run`
 
-The repository is organized as a multi-project setup.
-* `docker-compose.yml`: Defines and manages the shared infrastructure (Postgres, RabbitMQ).
-* `/order-service`: The main stateful microservice.
-* `/*-service-stub`: Four stateless microservices that act as dependencies. Each service is a self-contained Spring Boot application with a professional, layered folder structure.
+6.  **Start Node-RED:** Open another new terminal to run the pipeline orchestrator.
+    ```bash
+    node-red
+    ```
+The entire environment is now set up and ready for your demonstration.
 
-## Next Steps
+## Demonstrating Key Features
 
-The next phase of this project involves:
-* Containerizing the main `Order Service` using Docker.
-* Deploying the containerized application to a Kubernetes cluster (Minikube).
-* Building a CI/CD pipeline in Node-RED to automate the deployment process.
+This project is designed to showcase several key administrative tasks and performance objectives.
+
+### 1. CI/CD Pipeline Automation
+* **Action:** Navigate to the Node-RED UI at `http://localhost:1880`.
+* **Demo:** Click the **`🚀 Deploy Order Service`** button.
+* **Verification:** Show the `✅ DEPLOYMENT SUCCESSFUL` message in the debug panel. Then, switch to a terminal and run `kubectl get pods` to show the three `order-service` pods that were just created.
+
+### 2. Load Balancing & Performance Metrics
+* **Action:** First, set up three terminals to watch the logs of each pod in real-time (`kubectl logs -f <pod-name>`).
+* **Demo:** In a new terminal, use Apache Benchmark (`ab`) to generate traffic:
+    ```bash
+    # Use the port your minikube tunnel has exposed (e.g., 8080 or 80)
+    ab -n 100 -c 10 -m POST [http://127.0.0.1:8080/api/v1/orders](http://127.0.0.1:8080/api/v1/orders)
+    ```
+* **Verification:**
+    * Point to the three log terminals and show how the request logs are appearing on **all of them simultaneously**. This is live load balancing.
+    * Show the output from the `ab` command and explain the **Throughput** (`Requests per second`) and **Latency** (`Time per request`) metrics.
+
+### 3. Manual Scaling
+* **Action:** Use the `kubectl scale` command to demonstrate administrative control over the application.
+* **Demo:**
+    1.  Run `kubectl get pods -w` to watch the pods.
+    2.  In another terminal, scale up: `kubectl scale deployment order-service-deployment --replicas=5`. Show the new pods being created.
+    3.  Scale down: `kubectl scale deployment order-service-deployment --replicas=3`. Show the extra pods being terminated.
+
+## Project Reset / Shutdown
+To stop all components of the project, follow these steps:
+1.  **Stop Local Services:** `pkill -f 'java'` and `pkill -f 'node-red'`.
+2.  **Stop the Tunnel:** Press `Ctrl+C` in the `minikube tunnel` terminal.
+3.  **Delete from Kubernetes:** `kubectl delete -f order-service/deployment.yaml -f order-service/service.yaml`.
+4.  **Stop Kubernetes Cluster:** `minikube stop`.
+5.  **Stop Infrastructure:** `docker-compose down`.
