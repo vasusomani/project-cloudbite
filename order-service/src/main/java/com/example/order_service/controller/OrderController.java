@@ -19,9 +19,9 @@ public class OrderController {
     private final OrderEventPublisher orderEventPublisher;
     private final RestTemplate restTemplate;
 
-    private final String USER_SERVICE_URL = "http://localhost:5001/api/v1/users/validate";
-    private final String RESTAURANT_SERVICE_URL = "http://localhost:5002/api/v1/restaurants/check_stock";
-
+    private final String USER_SERVICE_URL = "http://host.minikube.internal:5001/api/v1/users/validate";
+    private final String RESTAURANT_SERVICE_URL = "http://host.minikube.internal:5002/api/v1/restaurants/check_stock";
+    
     public OrderController(OrderRepository orderRepository, OrderEventPublisher orderEventPublisher, RestTemplate restTemplate) {
         this.orderRepository = orderRepository;
         this.orderEventPublisher = orderEventPublisher;
